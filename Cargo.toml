@@ -1,0 +1,5 @@
+[package]
+
+name = "farce"
+version = "0.0.1"
+authors = ["Earl St Sauver <estsauver@gmail.com>"]
