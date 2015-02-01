@@ -1,10 +1,12 @@
 // Since there isn't a natural way to define these in tersm of the traits
 // that they operate on, we define this Parser directly over &str since that's
 // what we're interested in.
-trait Parsers<A> {
-  type Elem = A;
-  fn apply(input: Iterator<Elem>){}
+trait Parsers<T> {
+  fn apply(input: Input<T>) -> ParseResult<T, Input<T>>;
 }
+
+trait Input<A> : Iterator {}
+impl <A, I:Iterator<A>> Input<A> for I {}
 
 #[derive(PartialEq)]
 enum ParseResult<Elem, T> {
@@ -26,7 +28,7 @@ impl <T> ParseResult<T> {
   fn append(self, x: ParseResult<T>) -> ParseResult<T> {
     match self {
       ParseResult::Success(_) => self,
-      ParseResult::Failure => 
+      ParseResult::Failure => {
         match x {
           ParseResult::Success(_) => x,
           // TODO, actually need to return the parse result that has gone 
@@ -34,6 +36,7 @@ impl <T> ParseResult<T> {
           ParseResult::Failure => x,
           ParseResult::Error =>x
         }
+      }
       ParseResult::Error => self
     }
   }
