@@ -1,74 +1,48 @@
-// Since there isn't a natural way to define these in tersm of the traits
-// that they operate on, we define this Parser directly over &str since that's
-// what we're interested in.
-trait Parsers<T> {
-  fn apply(input: Input<T>) -> ParseResult<T, Input<T>>;
+pub trait Parser {
+  fn apply<'b>(&self, input: &'b str) -> Option<&'b str>;
 }
 
-trait Input<A> : Iterator {}
-impl <A, I:Iterator<A>> Input<A> for I {}
+pub struct LiteralParser<'a> { literal: &'a str }
 
-#[derive(PartialEq)]
-enum ParseResult<Elem, T> {
-  Success(T, Iterator<Elem>),
-  Failure(Iterator<Elem>),
-  Error
-}
-
-// 
-impl <T> ParseResult<T> {
-  fn map<U, F: Fn(T) -> U>(self, f: F) -> ParseResult<U> {
-    match self {
-      ParseResult::Success(t) => ParseResult::Success(f(t)),
-      ParseResult::Failure => ParseResult::Failure,
-      ParseResult::Error => ParseResult::Error
+impl <'a> Parser for LiteralParser<'a> {
+  fn apply<'i>(&self, input:&'i str) -> Option<&'i str> {
+    // Check for case where input isn't as long as literal
+    // zipper's will terminate as soon as 
+    // TODO are there cases where the unicode representation
+    // of one is different size but they incode the same size?
+    if input.len() < self.literal.len() {
+      return None
     }
-  }
 
-  fn append(self, x: ParseResult<T>) -> ParseResult<T> {
-    match self {
-      ParseResult::Success(_) => self,
-      ParseResult::Failure => {
-        match x {
-          ParseResult::Success(_) => x,
-          // TODO, actually need to return the parse result that has gone 
-          // the furthest along the input.
-          ParseResult::Failure => x,
-          ParseResult::Error =>x
-        }
-      }
-      ParseResult::Error => self
+    let zip_iter = self.literal.chars().zip(input.chars());
+    match zip_iter.all(|&: (x, y)| { x == y }) {
+      true => return Some(&input[..self.literal.len()]),
+      false => return None
     }
-  }
+  } 
+
+//fn either(&self, other: Parser) -> Parser {
+//}
 }
 
-#[cfg(test)] 
+#[cfg(test)]
 mod tests {
   use super::*;
-  use super::ParseResult::*;
 
   #[test]
-  fn test_map_success() {
-    let f = |&: x:i32| { 2 * x };
-    let start = Success(1232);
-    assert!(start.map(f) == Success(2464));
-  }
-
-  #[test]
-  fn test_map_failure() {
-    let f = |&: x:i32| { 2 * x };
-    let start = Failure;
-    assert!(start.map(f) == Failure)
+  fn test_literal_parser() {
+    let good_input = "Earl is getting rusty".as_slice();
+    let earl_matcher = LiteralParser{ literal: "Earl".as_slice()};
+    assert!(earl_matcher.apply(good_input).is_some());
+    let bad_input = "This isn't early".as_slice();
+    assert!(earl_matcher.apply(bad_input).is_none());
   }
 
 
   #[test]
-  fn test_map_error() {
-    let f = |&: x:i32| { 2 * x };
-    let start = Error;
-    assert!(start.map(f) == Error)
+  fn test_input_shorter_than_literal() {
+    let lit = "one".as_slice();
+    let input = "on".as_slice();
+    assert!(LiteralParser { literal: lit }.apply(input).is_none());
   }
 }
-
-
-
